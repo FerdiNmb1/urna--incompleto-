@@ -1,0 +1,220 @@
+#include <LiquidCrystal_I2C.h>
+#include <EEPROM.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include "variables.hpp"
+
+/*  
+este segmento é o "variables.hpp",tem algumas funções que ainda não foram declaradas 
+
+int8_t position = 0;
+int8_t type=0;
+int8_t selection;
+int8_t subSelection;
+int8_t valorEntrada;
+int32_t election_votes = 0;
+uint32_t registro = 0;
+//uint32_t registro = 0;
+String modes[4][4]={
+  {"Votacao", "Resultados","Teste de urna", "Configuracoes"},
+  {"Presidente", "Governadores","Prefeito", "Vereador"},
+  {"","Buzzer","Botoes",""},
+  {"Limpar dados","ad+ candidatos"}
+};
+String YoN[2]={"sim","nao"};
+//int pointer[position]=(modes[position].length()*10)/20
+bool mesario= false;
+bool confirmation= false;
+bool entry=false;
+
+
+void endElection(){
+  
+}
+void electionClear(){
+
+}
+
+void setCandidates(){
+
+}*/
+
+LiquidCrystal_I2C lcd(0x27, 20, 4);
+
+const int dataPin = 7;  
+const int clockPin = 6;  
+const int latchPin = 5;  
+
+
+void setup() {//pré definições
+selection = 0;
+lcd.begin(20,4);
+Serial.begin(9600);
+pinMode(dataPin, INPUT);
+pinMode(clockPin, OUTPUT);
+pinMode(latchPin, OUTPUT);
+pinMode(12, INPUT);
+pinMode(11, OUTPUT);
+pinMode(10, INPUT);
+pinMode(9, INPUT);
+pinMode(8, INPUT);
+//uma tela básica de inicialização
+lcd.setCursor(3,0);
+lcd.print("Bem vindo! :DD");
+delay(1500);
+lcd.clear();
+delay(500);
+}
+
+void loop() {
+  IC_read();//faz a leitura dos IC's de modo global
+ switch(selection){
+  case 0:
+  menu();
+  break;
+  case 1:
+  election();
+  break;
+  case 2:
+  results();
+  break;
+   case 3:
+  teste();
+  break;
+ }
+
+}
+void confirm(){//tela de confimação
+  entry==true?valorEntrada=1:valorEntrada=0;
+  lcd.setCursor(13,valorEntrada+2);lcd.print(">");
+  if(digitalRead(9)==HIGH || digitalRead(10)==HIGH){
+  lcd.setCursor(13,valorEntrada+2);lcd.print(" ");
+  entry= !entry;
+  delay(200);
+  }
+  if (digitalRead(8)==HIGH && valorEntrada==0){
+    delay(200);
+    confirmation = false;
+    lcd.clear();
+    selection = position+1;
+    type= selection;
+  
+  if(digitalRead(8)==HIGH && valorEntrada==1){
+    delay(200);
+    lcd.clear();
+     confirmation = false;
+  }
+ }
+}
+void menu(){//todos os menus
+  
+  lcd.setCursor(7,0);lcd.print(modes[type][0]);
+  lcd.setCursor(5,1);lcd.print(modes[type][1]);
+  lcd.setCursor(3,2);lcd.print(modes[type][2]);
+  lcd.setCursor(3,3);lcd.print(modes[type][3]);
+  if(digitalRead(10)==HIGH && position>=0 && position<3 && modes[type][position+1]!= ""){
+  
+   lcd.setCursor(4,position);lcd.print(" "); 
+   lcd.setCursor(15,position);lcd.print(" "); 
+   ++position;  
+   delay(100);
+  }
+  if(digitalRead(9)==HIGH && position> 0 && position<=3 && modes[type][position-1]!= ""){
+   
+   lcd.setCursor(4,position);lcd.print(" ");
+   lcd.setCursor(15,position);lcd.print(" ");
+   --position; 
+   delay(100);
+  }
+  lcd.setCursor(4,position);lcd.print(">");
+  lcd.setCursor(15,position);lcd.print("<");
+  if(digitalRead(8)==HIGH && modes[type][position]!= ""){
+  delay(500);
+  confirmation = true;
+   lcd.clear();
+   lcd.setCursor(1,0);
+   lcd.print("continuar para");
+   lcd.setCursor(1,1);lcd.print(modes[type][position]);
+   lcd.setCursor((modes[type][position]).length()+1,1);lcd.print( "?");
+   lcd.setCursor(14,2);lcd.print(YoN[0]);
+   lcd.setCursor(14,3);lcd.print(YoN[1]);
+   
+   
+  }
+  while(confirmation==true){
+    confirm(); 
+    delay(100);
+    //break;
+  }
+}
+void election(){//não tem a eleição ,_,
+  type = 1;
+  menu();
+  //IC_read();
+  for (int i = 0; i < 16; i++) {
+    if (bitRead(registro, i) != bitRead(election_votes, i)) {
+      Serial.print("Bit ");
+      Serial.print(i);
+      delay(150);
+      break; 
+    }
+  }
+}
+void results(){// epor conscequência não tem resultados
+ type = 1;
+ menu();
+}
+void teste(){//teste do buzzer e dos botões
+//tá tendo erro na inicialização desse segmento,mas antes funcionava
+  type = 2;
+  menu();
+  if(digitalRead(8)==HIGH && valorEntrada==0){subSelection=position;}
+  switch(subSelection){
+    IC_read();
+    case 1:
+    for (int i = 0; i < 16; i++) {
+      if (bitRead(registro, i) != 4) {
+        
+        break; 
+      } 
+    }
+    case 2:
+    delay(1000);
+    for (int i = 0; i < 16; i++) {
+      if (bitRead(registro, i) != bitRead(election_votes, i)) {
+        lcd.clear(); 
+        entry = true; 
+        lcd.print("button :");
+        lcd.print(i);
+        lcd.print(" is working");
+        delay(1000);
+        registro = 0;
+        lcd.clear();  
+        break; 
+        } 
+    }
+    while(registro == 0){
+   
+      lcd.print("no entrance detected");  
+      delay(100);lcd.clear();
+      break;
+    }
+  break;
+
+  
+  }
+}
+void IC_read(){
+  digitalWrite(latchPin, LOW);    
+  delayMicroseconds(5);
+  digitalWrite(latchPin, HIGH);
+  //uint32_t registro = 0;
+  for (int i = 0; i < 16; i++) {
+    registro <<= 1;  
+    registro |= digitalRead(dataPin); 
+    digitalWrite(clockPin, HIGH);
+    delayMicroseconds(5);
+    digitalWrite(clockPin, LOW);
+  }
+}
